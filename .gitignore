@@ -1,2 +1,10 @@
 dist/
 site.tar.gz
+.env
+.env.*
+**/tuya-credentials
+**/oauth-config.json
+**/camera-config.json
+**/cloudflare-access.json
+**/cloudflare-overrides.json
+**/smartthings-oauth.json

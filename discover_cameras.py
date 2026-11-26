@@ -1,7 +1,8 @@
 import hashlib, hmac, json, os, secrets, time, urllib.request, urllib.parse
 from pathlib import Path
-root = Path('/home/perry/Documents/Codex/2026-11-26/i-x20')
-client, secret = (root/'work/tuya-credentials').read_text().splitlines()
+project = Path(__file__).resolve().parent
+work = Path(os.environ.get('REALME_CAMERA_WORKDIR', project.parents[1]))
+client, secret = (work/'tuya-credentials').read_text().splitlines()
 token = ''
 api = 'https://openapi.tuyain.com'
 
@@ -38,8 +39,8 @@ for device in data:
     cameras.append({'device_id': device_id, 'uid': uid, 'name': f'Realme Camera {len(cameras)+1}'})
 if not cameras:
     raise SystemExit('No realme cameras returned')
-(root/'work/camera-config.json').write_text(json.dumps({str(i+1): camera for i, camera in enumerate(cameras)}))
-(root/'work/camera-config.json').chmod(0o600)
+(work/'camera-config.json').write_text(json.dumps({str(i+1): camera for i, camera in enumerate(cameras)}))
+(work/'camera-config.json').chmod(0o600)
 oauth = {
     'OAUTH_CLIENT_ID': secrets.token_urlsafe(24),
     'OAUTH_CLIENT_SECRET': secrets.token_urlsafe(36),
@@ -47,6 +48,6 @@ oauth = {
     'GOOGLE_HOME_PAIRING_PIN': ''.join(str(secrets.randbelow(10)) for _ in range(8)),
     'GOOGLE_HOME_ACCOUNT_ID': 'realme-home-' + secrets.token_hex(12),
 }
-(root/'work/oauth-config.json').write_text(json.dumps(oauth))
-(root/'work/oauth-config.json').chmod(0o600)
+(work/'oauth-config.json').write_text(json.dumps(oauth))
+(work/'oauth-config.json').chmod(0o600)
 print(f'Prepared {len(cameras)} cameras and OAuth configuration.')

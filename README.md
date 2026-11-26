@@ -1,33 +1,24 @@
 # Realme Camera Bridge
 
-This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home and SmartThings. It asks Tuya for a short-lived stream URL when a platform requests live video; it does not keep a camera session running on a home computer.
+This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home. It discovers the configured cameras and requests an HLS stream from Tuya when Google Home asks to view one. It does not keep a camera feed running on a home computer.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed components, OAuth and stream flows, runtime configuration, and current limitations.
 
 ## Endpoints
 
 - `GET /health` returns a minimal availability response.
-- `/oauth/authorize` and `/oauth/token` provide account linking for Google Home and SmartThings.
-- `POST /fulfillment` handles Google Home camera discovery and HLS stream requests.
-- `POST /smartthings` handles SmartThings Schema discovery, refresh, and RTSP stream commands.
+- `/oauth/authorize` and `/oauth/token` provide Google Home account linking.
+- `POST /fulfillment` handles Google Home camera discovery, status queries, and HLS stream requests.
 
-## Runtime secrets
+## Deployment
 
-Configure these values in the Site's runtime environment:
+Deploy with `python3 scripts/deploy-cloudflare.py`. The script uploads the Worker and its secret bindings, enables its `workers.dev` URL, and checks `/health`.
 
-- `TUYA_ACCESS_ID`, `TUYA_ACCESS_SECRET`, `CAMERAS_JSON`
-- `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_SIGNING_SECRET`
-- `GOOGLE_HOME_PAIRING_PIN`, `GOOGLE_HOME_ACCOUNT_ID`
-- `SMARTTHINGS_CLIENT_ID`, `SMARTTHINGS_CLIENT_SECRET`
-- Optional: `SMARTTHINGS_PAIRING_PIN` to use a different pairing code for SmartThings.
+The script reads Google OAuth settings from `oauth-config.json`, camera data from `camera-config.json`, and Tuya credentials from `tuya-credentials` in the workspace config directory. By default, that is the adjacent `work/` directory in this checkout layout; set `REALME_CAMERA_WORKDIR` to use another location. Cloudflare access and optional Google pairing-code overrides are stored in `~/.config/realme-camera-bridge/`. Keep these files private and set permissions to `600`.
 
-The SmartThings authorization server must allow the regional callbacks documented by SmartThings: US, EU, and APAC. Its Schema webhook URL is this Site's `/smartthings` endpoint. Google Home's fulfillment URL is this Site's `/fulfillment` endpoint.
+The Google Home fulfillment URL is the Worker URL plus `/fulfillment`. Its account-linking URL is the Worker URL plus `/oauth/authorize`.
 
-## Known limitation
-
-Tuya reports whether motion detection is enabled, but the status API queried here does not report a reliable current motion event. The SmartThings camera profile includes a motion capability, so the bridge does not invent active/inactive motion state.
-
-Both Google Home and SmartThings must be able to reach the webhook and OAuth URLs from their cloud services. An owner-only Site prevents those callbacks. Making the endpoint public exposes the service URL and pairing form to the internet; stream allocation still requires platform OAuth credentials and a signed account token.
-
-## Build and package
+## Build
 
 The deterministic build copies `worker/index.js` and the hosting manifest into `dist/`:
 

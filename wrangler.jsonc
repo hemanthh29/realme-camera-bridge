@@ -1,0 +1,16 @@
+{
+  "name": "realme-camera-bridge",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-26",
+  "workers_dev": true,
+  "ratelimits": [
+    {
+      "name": "PAIRING_RATE_LIMITER",
+      "namespace_id": "870051",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
+  ]
+}
