@@ -17,7 +17,7 @@ const AUTH_PAGE_HEADERS = {
   "X-Content-Type-Options": "nosniff",
 };
 const AUTH_CODE_LIFETIME_SECONDS = 90;
-const ACCESS_TOKEN_LIFETIME_SECONDS = 180 * 24 * 60 * 60;
+const ACCESS_TOKEN_LIFETIME_SECONDS = 60 * 60;
 const REFRESH_TOKEN_LIFETIME_SECONDS = 5 * 365 * 24 * 60 * 60;
 
 export default {
@@ -159,14 +159,21 @@ ${alert}<form method="post" action="/oauth/authorize">${hidden}
 }
 
 async function token(request, env) {
-  const client = parseBasicAuthorization(request.headers.get("Authorization"));
-  const configuredClient = getOAuthClient(env, client?.id);
-  if (!client || !configuredClient || !constantTimeEqual(client.secret, configuredClient.secret)) {
-    return json({ error: "invalid_client" }, 401);
-  }
   const formText = await request.text();
   if (formText.length > MAX_REQUEST_BYTES) return json({ error: "request_too_large" }, 413);
   const form = new URLSearchParams(formText);
+  const basicClient = parseBasicAuthorization(request.headers.get("Authorization"));
+  const bodyClientId = form.get("client_id") || "";
+  const bodyClientSecret = form.get("client_secret") || "";
+  if (basicClient && ((bodyClientId && bodyClientId !== basicClient.id) ||
+      (bodyClientSecret && bodyClientSecret !== basicClient.secret))) {
+    return json({ error: "invalid_client" }, 401);
+  }
+  const client = basicClient || { id: bodyClientId, secret: bodyClientSecret };
+  const configuredClient = getOAuthClient(env, client.id);
+  if (!configuredClient || !constantTimeEqual(client.secret, configuredClient.secret)) {
+    return json({ error: "invalid_client" }, 401);
+  }
   const grantType = form.get("grant_type");
   const subject = env.GOOGLE_HOME_ACCOUNT_ID;
   let payload;
