@@ -16,6 +16,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 WORK = Path(os.environ.get("REALME_CAMERA_WORKDIR", PROJECT.parents[1]))
 SECURE_DIR = Path.home() / ".config" / "realme-camera-bridge"
 ACCESS_FILE = SECURE_DIR / "cloudflare-access.json"
+SMARTTHINGS_FILE = SECURE_DIR / "smartthings-oauth.json"
 OVERRIDES_FILE = SECURE_DIR / "cloudflare-overrides.json"
 API_ROOT = "https://api.cloudflare.com/client/v4"
 
@@ -45,10 +46,12 @@ def require_private(path):
 def runtime_secrets():
     oauth = read_json(WORK / "oauth-config.json")
     cameras = read_json(WORK / "camera-config.json")
+    smartthings = read_json(SMARTTHINGS_FILE)
     overrides = read_json(OVERRIDES_FILE)
     require_private(WORK / "oauth-config.json")
     require_private(WORK / "camera-config.json")
     require_private(WORK / "tuya-credentials")
+    require_private(SMARTTHINGS_FILE)
     require_private(OVERRIDES_FILE)
 
     tuya_lines = (WORK / "tuya-credentials").read_text().splitlines()
@@ -65,17 +68,22 @@ def runtime_secrets():
     )
     if any(not isinstance(oauth.get(key), str) or not oauth[key] for key in required_oauth):
         raise DeployError("Google OAuth config is incomplete.")
+    required_smartthings = ("SMARTTHINGS_CLIENT_ID", "SMARTTHINGS_CLIENT_SECRET")
+    if any(not isinstance(smartthings.get(key), str) or not smartthings[key]
+           for key in required_smartthings):
+        raise DeployError("SmartThings OAuth config is incomplete.")
     if not isinstance(cameras, dict) or not cameras:
         raise DeployError("Camera config is empty or invalid.")
 
     allowed_overrides = {
         key: value for key, value in overrides.items()
-        if key == "GOOGLE_HOME_PAIRING_PIN"
+        if key in ("GOOGLE_HOME_PAIRING_PIN", "SMARTTHINGS_PAIRING_PIN")
     }
     values = {
         **oauth,
         **allowed_overrides,
         "CAMERAS_JSON": json.dumps(cameras, separators=(",", ":")),
+        **smartthings,
         "TUYA_ACCESS_ID": tuya_access_id,
         "TUYA_ACCESS_SECRET": tuya_access_secret,
     }
