@@ -79,8 +79,10 @@ The webhook accepts `st-schema` version `1.0` interactions and validates the Sma
 
 - **`discoveryRequest`** returns configured cameras as `c2c-camera-rtsp-3` devices, with stable external IDs, names, and Realme model metadata.
 - **`stateRefreshRequest`** queries Tuya device status and returns `st.healthCheck.healthStatus`. Unknown camera IDs receive `DEVICE-DELETED`; offline or failed status checks return offline health state and `DEVICE-OFFLINE`.
+- **`commandRequest` / `st.refresh.refresh`** queries Tuya device status and returns `st.healthCheck.healthStatus`, so SmartThings can refresh camera availability.
 - **`commandRequest` / `st.videoStream.startStream`** allocates an RTSP stream from Tuya and returns its URL for both `InHomeURL` and `OutHomeURL`.
 - **`commandRequest` / `st.videoStream.stopStream`** clears the reported stream URLs. Tuya stream allocation is on demand and the bridge does not proxy the stream.
+- SmartThings command responses include the current `st.healthCheck.healthStatus` state.
 - Unsupported capabilities and commands return Schema device errors.
 
 Tuya documents RTSP allocation as `POST /v1.0/users/{uid}/devices/{device_id}/stream/actions/allocate` with `{"type":"rtsp"}`. It may return an `rtsps://` URL; the Worker accepts both RTSP schemes for SmartThings. See [Tuya RTSP API](https://developer.tuya.com/en/docs/iot/rtsp?_source=916fd766b6b05bd472341f20e65e8874&id=Kacsdjcqllyql) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).

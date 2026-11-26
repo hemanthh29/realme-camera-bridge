@@ -397,8 +397,27 @@ async function handleSmartThings(body, env) {
 
     const states = [];
     let deviceError;
+    let online;
+    const checkOnline = async () => {
+      if (online !== undefined) return online;
+      try {
+        const tuyaToken = await getTuyaAccessToken(env);
+        online = await getTuyaCameraOnline(camera, tuyaToken, env) === true;
+      } catch {
+        online = false;
+      }
+      return online;
+    };
     for (const command of device.commands || []) {
-      if (command.component !== "main" || command.capability !== "st.videoStream") {
+      if (command.component !== "main") {
+        deviceError = [{ errorEnum: "CAPABILITY-NOT-SUPPORTED", detail: "This camera only supports video streaming." }];
+        continue;
+      }
+      if (command.capability === "st.refresh" && command.command === "refresh") {
+        await checkOnline();
+        continue;
+      }
+      if (command.capability !== "st.videoStream") {
         deviceError = [{ errorEnum: "CAPABILITY-NOT-SUPPORTED", detail: "This camera only supports video streaming." }];
         continue;
       }
@@ -411,6 +430,7 @@ async function handleSmartThings(body, env) {
             attribute: "stream",
             value: { InHomeURL: streamUrl, OutHomeURL: streamUrl },
           });
+          online = true;
           deviceError = undefined;
         } catch {
           deviceError = [{ errorEnum: "DEVICE-UNAVAILABLE", detail: "Tuya could not allocate a camera stream." }];
@@ -422,10 +442,21 @@ async function handleSmartThings(body, env) {
           attribute: "stream",
           value: { InHomeURL: "", OutHomeURL: "" },
         });
-        deviceError = undefined;
+        await checkOnline();
+        if (online) deviceError = undefined;
       } else {
         deviceError = [{ errorEnum: "CAPABILITY-NOT-SUPPORTED", detail: "Camera command is not supported." }];
       }
+    }
+    online = await checkOnline();
+    states.push({
+      component: "main",
+      capability: "st.healthCheck",
+      attribute: "healthStatus",
+      value: online ? "online" : "offline",
+    });
+    if (!online) {
+      deviceError = [{ errorEnum: "DEVICE-OFFLINE", detail: "Camera is offline in Tuya." }];
     }
     return {
       externalDeviceId,
