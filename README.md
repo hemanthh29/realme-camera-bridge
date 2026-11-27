@@ -11,14 +11,14 @@ See [REFERENCES.md](REFERENCES.md) for the Cloudflare, Google Home, SmartThings,
 | --- | --- | --- |
 | Google Home mobile app | Tuya HLS | Working. HLS can have more live delay because the player waits for media segments and buffers ahead. The delay for this camera has not been measured. |
 | Google Home on a TV | Tuya HLS | Unknown; not tested. |
-| SmartThings mobile app | Tuya WebRTC | Working. The user reported no noticeable ongoing delay in a successful mobile session; latency has not been formally measured. Connection setup and network relays can still delay the first frame. |
+| SmartThings mobile app | Tuya WebRTC | Working. No noticeable ongoing delay was observed during the successful mobile session; latency has not been formally measured. Connection setup and network relays can still delay the first frame. |
 | SmartThings on Samsung BU8000 (Tizen 6.5) | Tuya WebRTC | Still buffers when opened. Root cause is unknown. |
 
 See [streaming behavior and future work](ARCHITECTURE.md#streaming-behavior-and-future-work) and the [TV investigation notes](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers). These results apply to the tested realme 360 camera; compatibility with other models is unverified.
 
 ## Tested camera and compatibility
 
-The tested camera is the **realme 360 camera**, a Tuya-backed camera that pairs with the **Smart Life** app. The owner's Smart Life account is linked to a Tuya IoT cloud project so the project can access the account's authorized devices through Tuya APIs. In the Tuya Developer Platform, this is done under the project's **Devices** tab with **Link Tuya App Account**; the account owner scans the QR code in Smart Life and approves the link. The camera is paired to Smart Life first, then made available to the cloud project through that account link. It is not uploaded as source code or created as a product in this repository.
+The tested camera is the **realme 360 camera**, a Tuya-backed camera that pairs with the **Smart Life** app. In the tested setup, the camera is paired in Smart Life, then that Smart Life account is linked to a Tuya IoT cloud project so the project can access its authorized devices through Tuya APIs. In the Tuya Developer Platform, open the project's **Devices** tab, choose **Link Tuya App Account**, then scan and approve the QR code in Smart Life. The camera becomes available to the cloud project through this account link; it is not uploaded as source code or created as a product in this repository.
 
 This bridge has been tested with the realme 360 camera only. Other Tuya-backed or Powered by Tuya cameras **may** work if they can be linked to the Smart Life account and their Tuya cloud project exposes the camera status and streaming APIs this bridge needs: HLS allocation for Google Home and WebRTC configuration/signaling for SmartThings. Tuya branding alone does not guarantee compatibility; support for other camera models, app regions, and firmware is unverified. See [Tuya's device-linking guide](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl).
 

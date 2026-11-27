@@ -38,7 +38,7 @@ The Worker has a `PAIRING_RATE_LIMITER` binding configured for five pairing subm
 
 ## Tested camera and Tuya account link
 
-The tested hardware is the **realme 360 camera**, which pairs with the Smart Life app and is Tuya-backed. The camera is paired in Smart Life first. The owner then links that Smart Life account to a Tuya IoT cloud project from the project's **Devices > Link Tuya App Account** flow, approving the QR prompt in Smart Life. This authorizes the cloud project to access devices already associated with that app account; the camera itself is not added as a code artifact or a separate repository project. The bridge's private camera configuration uses the Tuya device ID (and, where needed, its Tuya user ID).
+The tested hardware is the **realme 360 camera**, which pairs with the Smart Life app and is Tuya-backed. In the tested setup, the camera is paired in Smart Life, then that Smart Life account is linked to a Tuya IoT cloud project through **Devices > Link Tuya App Account** and the QR approval in Smart Life. This authorizes the cloud project to access devices associated with that app account; the camera itself is not added as a code artifact or a separate repository project. The bridge's private camera configuration uses the Tuya device ID (and, where needed, its Tuya user ID).
 
 Only the realme 360 camera has been tested with this bridge. Other Tuya-backed cameras may be compatible when the linked Tuya project provides the required device status and camera streaming APIs, including HLS allocation for Google Home and WebRTC configuration/signaling for SmartThings. A Tuya or Smart Life label by itself does not establish compatibility; other models and regions remain unverified. See [Tuya's device-linking guide](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl).
 
@@ -103,7 +103,7 @@ Google Home currently receives a Tuya HLS URL. HLS publishes video as media segm
 
 ### Why SmartThings WebRTC feels more immediate
 
-SmartThings mobile uses Tuya WebRTC. After signaling and ICE negotiation, WebRTC carries media continuously instead of waiting for HLS segment boundaries, so it is designed for lower live latency. First-frame time can still vary with signaling, ICE checks, TURN relay selection, and network conditions. The owner reported no noticeable ongoing delay on the working mobile stream, but no measured latency benchmark is available.
+SmartThings mobile uses Tuya WebRTC. After signaling and ICE negotiation, WebRTC carries media continuously instead of waiting for HLS segment boundaries, so it is designed for lower live latency. First-frame time can still vary with signaling, ICE checks, TURN relay selection, and network conditions. The working mobile stream had no noticeable ongoing delay, but no measured latency benchmark is available.
 
 ### Possible Google Home WebRTC implementation
 
