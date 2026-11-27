@@ -1,6 +1,6 @@
 # Realme Camera Bridge
 
-This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home and SmartThings. Google Home requests HLS streams; SmartThings requests RTSP streams. It does not keep a camera feed running on a home computer.
+This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home and SmartThings. Google Home requests HLS streams; SmartThings uses WebRTC signaling, with media carried over Tuya's peer-to-peer path or TURN relay. It does not keep a camera feed running on a home computer.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed components, OAuth and stream flows, runtime configuration, and current limitations.
 
@@ -9,7 +9,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed components, OAuth and st
 - `GET /health` returns a minimal availability response.
 - `/oauth/authorize` and `/oauth/token` provide Google Home account linking.
 - `POST /fulfillment` handles Google Home camera discovery, status queries, and HLS stream requests.
-- `POST /smartthings` handles SmartThings Schema discovery, state refresh, and RTSP stream commands.
+- `POST /smartthings` handles SmartThings Schema discovery, state refresh, and WebRTC signaling commands.
 
 ## Deployment
 

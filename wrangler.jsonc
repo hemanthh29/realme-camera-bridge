@@ -12,5 +12,11 @@
         "period": 60
       }
     }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SMARTTHINGS_CALLBACKS",
+      "id": "4d4875a5071e44a881faff2b0eb62555"
+    }
   ]
 }

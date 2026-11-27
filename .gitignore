@@ -8,3 +8,6 @@ site.tar.gz
 **/cloudflare-access.json
 **/cloudflare-overrides.json
 **/smartthings-oauth.json
+**/smartthings-callback-oauth.json
+**/cloudflare-kv-access.json
+__pycache__/

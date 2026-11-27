@@ -1,6 +1,6 @@
 # Realme Camera Bridge: deployed architecture
 
-**Scope:** Cloudflare Worker for Google Home and SmartThings. The Google Home HLS path remains the existing implementation; SmartThings is an additional Schema endpoint that requests Tuya RTSP streams.
+**Scope:** Cloudflare Worker for Google Home and SmartThings. The Google Home HLS path remains the existing implementation; SmartThings uses the Tuya WebRTC signaling path.
 
 ## System overview
 
@@ -9,18 +9,18 @@ flowchart LR
     GH[Google Home] -->|OAuth and fulfillment| W[Cloudflare Worker<br/>workers.dev]
     ST[SmartThings Schema] -->|OAuth and Schema requests| W
     W -->|HLS allocation| T[Tuya OpenAPI]
-    W -->|RTSP allocation| T
+    W -->|WebRTC settings and MQTT credentials| T
+    W <-->|temporary MQTT signaling| M[Tuya MQTT broker]
     T -->|HTTPS HLS URL| W
-    T -->|RTSP or RTSPS URL| W
     W -->|CameraStream response| GH
-    W -->|videoStream stream state| ST
+    W -->|WebRTC answer and ICE state| ST
     GH -.->|Consumes HLS| TV[Tuya video host]
-    ST -.->|Consumes RTSP/RTSPS| TV
+    ST <-->|WebRTC media over ICE| Cams[Realme cameras]
     C[Private camera configuration] -. secret binding .-> W
     S[Private platform OAuth and Tuya credentials] -. secret bindings .-> W
 ```
 
-The Worker handles authorization, device discovery/status, and stream allocation. It does not proxy video bytes, maintain an always-on stream, or require a home computer to remain on. Google Home receives an HTTPS HLS URL; SmartThings receives a Tuya RTSP/RTSPS URL.
+The Worker handles authorization, device discovery/status, HLS allocation for Google Home, and short-lived MQTT signaling for SmartThings. It does not proxy video bytes or require a home computer to remain on. Google Home receives an HTTPS HLS URL. SmartThings and the camera exchange WebRTC offers, answers, and ICE candidates through Tuya MQTT; media then flows over the WebRTC ICE path and may use Tuya's TURN relay.
 
 ## Deployed components
 
@@ -30,8 +30,9 @@ The Worker handles authorization, device discovery/status, and stream allocation
 | SmartThings Schema integration | Calls the OAuth endpoints and `/smartthings` with discovery, state refresh, and command interactions. |
 | Cloudflare Worker `realme-camera-bridge` | Public HTTPS service on its `workers.dev` hostname. |
 | Cloudflare secret bindings | Hold OAuth values, camera data, and Tuya API credentials. |
-| Tuya OpenAPI (`openapi.tuyain.com`) | Authenticates API calls, reports camera online status for SmartThings, and allocates HLS or RTSP streams. |
-| Tuya video host | Serves the stream at the URL returned by Tuya. |
+| Tuya OpenAPI (`openapi.tuyain.com`) | Authenticates API calls, reports camera online status, allocates HLS for Google Home, and returns SmartThings WebRTC and MQTT configuration. |
+| Tuya MQTT broker | Carries SmartThings WebRTC signaling packets to and from the cameras. |
+| Tuya video and TURN services | Carry HLS for Google Home and, when needed, relay WebRTC media for SmartThings. |
 
 The Worker has a `PAIRING_RATE_LIMITER` binding configured for five pairing submissions per 60 seconds per client IP key. SmartThings and Google Home pairing attempts use separate keys.
 
@@ -43,7 +44,7 @@ The Worker has a `PAIRING_RATE_LIMITER` binding configured for five pairing subm
 | `/oauth/authorize` | `GET`, `POST` | Validates the platform's OAuth request, displays the pairing/authorization page, then redirects to the platform callback. |
 | `/oauth/token` | `POST` | Exchanges authorization codes or refresh tokens for platform-specific signed tokens. Accepts body credentials or HTTP Basic auth. |
 | `/fulfillment` | `POST` | Existing Google Home camera discovery, status, and HLS stream fulfillment. |
-| `/smartthings` | `POST` | SmartThings Schema discovery, state refresh, and RTSP stream commands. |
+| `/smartthings` | `POST` | SmartThings Schema discovery, state refresh, and WebRTC signaling commands. |
 | Other paths | Any | Return `404`. |
 
 JSON request bodies accepted by the fulfillment and Schema handlers are limited to 64 KiB. Tuya API calls have a five-second timeout.
@@ -77,15 +78,16 @@ No HLS handling or Google intent mapping is shared with the SmartThings Schema h
 
 The webhook accepts `st-schema` version `1.0` interactions and validates the SmartThings-specific signed bearer token.
 
-- **`discoveryRequest`** returns configured cameras as `c2c-camera-rtsp-3` devices, with stable external IDs, names, and Realme model metadata.
-- **`stateRefreshRequest`** queries Tuya device status and returns `st.healthCheck.healthStatus`. Unknown camera IDs receive `DEVICE-DELETED`; offline or failed status checks return offline health state and `DEVICE-OFFLINE`.
-- **`commandRequest` / `st.refresh.refresh`** queries Tuya device status and returns `st.healthCheck.healthStatus`, so SmartThings can refresh camera availability.
-- **`commandRequest` / `st.videoStream.startStream`** allocates an RTSP stream from Tuya and returns its URL for both `InHomeURL` and `OutHomeURL`.
-- **`commandRequest` / `st.videoStream.stopStream`** clears the reported stream URLs. Tuya stream allocation is on demand and the bridge does not proxy the stream.
-- SmartThings command responses include the current `st.healthCheck.healthStatus` state.
+- **`discoveryRequest`** returns configured cameras as `c2c-camera-webrtc-3` devices, with stable external IDs, names, and Realme model metadata.
+- **`stateRefreshRequest`** queries Tuya device status and returns `st.healthCheck.healthStatus` plus WebRTC capability settings. Unknown camera IDs receive `DEVICE-DELETED`; offline or failed status checks return offline health state and `DEVICE-OFFLINE`.
+- **`commandRequest` / `st.refresh.refresh`** queries Tuya status and refreshes the WebRTC settings shown to SmartThings.
+- **`commandRequest` / `st.webrtc.sdpOffer`** gets Tuya WebRTC settings and temporary MQTT credentials, sends the offer to the camera, then returns fresh TURN details for that stream alongside the camera's SDP answer and any ICE candidates received during setup.
+- **`commandRequest` / `st.webrtc.clientIce`** sends SmartThings ICE candidates to the camera and returns any camera candidates received in response.
+- **`commandRequest` / `st.webrtc.requestTurnInfo`** supplies Tuya's temporary TURN credentials when SmartThings requests them. **`st.webrtc.end`** sends a disconnect signal to the camera.
+- SmartThings command responses include the current `st.healthCheck.healthStatus` state. The MQTT socket is opened only for signaling commands and is closed after the exchange; video bytes do not pass through the Worker.
 - Unsupported capabilities and commands return Schema device errors.
 
-Tuya documents RTSP allocation as `POST /v1.0/users/{uid}/devices/{device_id}/stream/actions/allocate` with `{"type":"rtsp"}`. It may return an `rtsps://` URL; the Worker accepts both RTSP schemes for SmartThings. See [Tuya RTSP API](https://developer.tuya.com/en/docs/iot/rtsp?_source=916fd766b6b05bd472341f20e65e8874&id=Kacsdjcqllyql) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
+Tuya WebRTC uses `GET /v1.0/devices/{device_id}/webrtc-configs` and `POST /v1.0/open-hub/access/config`. The Worker obtains the Tuya user ID from the configured camera data or device details, subscribes to the MQTT source topic, and publishes protocol 302 WebRTC messages to the sink topic. SmartThings uses its built-in `c2c-camera-webrtc-3` device handler. See [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
 
 ## Runtime configuration and deployment
 
@@ -93,7 +95,7 @@ Tuya documents RTSP allocation as `POST /v1.0/users/{uid}/devices/{device_id}/st
 
 - `oauth-config.json`: Google OAuth values and Google pairing PIN.
 - `smartthings-oauth.json`: SmartThings OAuth client ID and secret.
-- `camera-config.json`: camera names, Tuya device IDs, and optional Tuya user IDs.
+- `camera-config.json`: camera names, Tuya device IDs, and optional Tuya user IDs. Google Home keeps using the existing device allocation route; SmartThings can retrieve the Tuya user ID separately for MQTT signaling.
 - `tuya-credentials`: Tuya access ID and secret.
 - `~/.config/realme-camera-bridge/cloudflare-overrides.json`: optional Google and SmartThings pairing PIN overrides.
 - `~/.config/realme-camera-bridge/cloudflare-access.json`: Cloudflare account ID and deployment API token.
@@ -102,7 +104,7 @@ The workspace configuration directory defaults to the adjacent `work/` directory
 
 ## Scope and limits
 
-- Google Home advertises HLS; SmartThings requests Tuya RTSP/RTSPS. Neither platform's video is proxied by the Worker.
-- SmartThings motion capability is part of the selected pre-made camera profile, but this implementation does not currently map Tuya motion events into SmartThings motion state.
+- Google Home advertises HLS. SmartThings uses WebRTC; neither platform's video bytes are proxied by the Worker.
+- SmartThings' pre-made WebRTC camera profile includes motion state, currently reported as inactive; Tuya motion events are not mapped yet.
 - SmartThings state refresh depends on Tuya's online status API. Google Home's QUERY behavior is intentionally unchanged and remains configuration-based.
 - No FTP service, continuous recording, local relay, or camera management UI is implemented.
