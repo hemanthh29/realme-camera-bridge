@@ -95,6 +95,26 @@ The webhook accepts `st-schema` version `1.0` interactions and validates the Sma
 
 Tuya WebRTC uses `GET /v1.0/devices/{device_id}/webrtc-configs` and `POST /v1.0/open-hub/access/config`. The Worker obtains the Tuya user ID from the configured camera data or device details, subscribes to the MQTT source topic, and publishes protocol 302 WebRTC messages to the sink topic. SmartThings uses its built-in `c2c-camera-webrtc-3` device handler. See [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
 
+## Streaming behavior and future work
+
+### Why the HLS stream has more delay
+
+Google Home currently receives a Tuya HLS URL. HLS publishes video as media segments indexed by a playlist; the player waits for segments to become available and usually buffers some media before playback. That creates startup delay and means the picture can trail the camera's live moment. The exact delay depends on Tuya's segment and playlist timing, player buffering, and network conditions. This bridge requests and returns Tuya's HLS URL; it does not create segments or control the player's buffer, and the actual delay for this camera has not been measured. Low-Latency HLS requires support from the streaming service and player, so it cannot be enabled by changing this Worker alone. See Apple's [HLS playlist and segment overview](https://developer.apple.com/documentation/http-live-streaming/example-playlists-for-http-live-streaming) and [Low-Latency HLS requirements](https://developer.apple.com/documentation/http-live-streaming/enabling-low-latency-http-live-streaming-hls).
+
+### Why SmartThings WebRTC feels more immediate
+
+SmartThings mobile uses Tuya WebRTC. After signaling and ICE negotiation, WebRTC carries media continuously instead of waiting for HLS segment boundaries, so it is designed for lower live latency. First-frame time can still vary with signaling, ICE checks, TURN relay selection, and network conditions. The owner reported no noticeable ongoing delay on the working mobile stream, but no measured latency benchmark is available.
+
+### Possible Google Home WebRTC implementation
+
+Google's CameraStream trait defines WebRTC responses, including signaling URL, offer, and ICE server fields. Google's documentation lists WebRTC playback support for Nest smart displays and Chromecast with Google TV; that does not establish support in every Google Home mobile or TV viewing surface. The current bridge advertises and returns HLS only. Future work could add a Google-specific signaling route that translates Google's CameraStream WebRTC exchange to Tuya's MQTT signaling, then test each intended Google surface. Keep the working HLS path until the WebRTC path is demonstrated end to end. See the [Google CameraStream reference](https://developers.home.google.com/cloud-to-cloud/traits/camerastream).
+
+### Samsung Tizen TV investigation and workarounds
+
+SmartThings video on the Samsung BU8000 continues to buffer, while SmartThings mobile works. The cause is not known, and the available cloud trace cannot prove whether the TV completed ICE, received media, or rendered frames. Future debugging should compare one controlled TV attempt with one working phone attempt and capture packets at a point that can see the TV's traffic. Make TV-specific changes only when new evidence identifies a protocol or connectivity mismatch, and recheck SmartThings mobile after each change.
+
+For viewing while the built-in SmartThings TV player remains unresolved, the currently working SmartThings mobile app is the verified option. An external Cast or Google TV receiver could also be tested with the Google Home HLS path; this would not fix the built-in Tizen SmartThings viewer and may retain HLS delay. Neither option has been tested as a BU8000 workaround in this project.
+
 ## Known issue: SmartThings TV video buffers
 
 **Status: unresolved as of 2026-11-27. The root cause has not been confirmed.** SmartThings mobile playback works, but the Samsung BU8000 TV (Tizen 6.5) continues to show a loading spinner. Google Home is working through its separate HLS path.

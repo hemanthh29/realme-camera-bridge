@@ -5,9 +5,16 @@ This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home and Sm
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed components, OAuth and stream flows, runtime configuration, and current limitations.
 See [REFERENCES.md](REFERENCES.md) for the Cloudflare, Google Home, SmartThings, Tuya, Samsung, and network documentation used by the project.
 
-## Current status
+## Current working status
 
-Google Home and SmartThings on mobile are reported working. SmartThings live video on the Samsung BU8000 TV still buffers. Its root cause is **unknown**; successful Worker responses do not prove that the TV completed ICE negotiation or rendered video. See [the investigation notes](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers) and [CONTRIBUTING.md](CONTRIBUTING.md) for the evidence and next diagnostic steps.
+| Platform and screen | Stream path | Status |
+| --- | --- | --- |
+| Google Home mobile app | Tuya HLS | Working. HLS can have more live delay because the player waits for media segments and buffers ahead. The delay for this camera has not been measured. |
+| Google Home on a TV | Tuya HLS | Unknown; not tested. |
+| SmartThings mobile app | Tuya WebRTC | Working. The user reported no noticeable ongoing delay in a successful mobile session; latency has not been formally measured. Connection setup and network relays can still delay the first frame. |
+| SmartThings on Samsung BU8000 (Tizen 6.5) | Tuya WebRTC | Still buffers when opened. Root cause is unknown. |
+
+See [streaming behavior and future work](ARCHITECTURE.md#streaming-behavior-and-future-work) and the [TV investigation notes](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers). These results apply to the tested realme 360 camera; compatibility with other models is unverified.
 
 ## Tested camera and compatibility
 

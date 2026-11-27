@@ -50,6 +50,11 @@ This page collects the consoles, official documentation, and investigation repor
 - [Samsung application testing FAQ](https://developer.samsung.com/smarttv/develop/faq/application-testing.html) — includes limits on `sdb` system log retrieval.
 - [Wireshark FAQ](https://www.wireshark.org/faq.html) — packet visibility on switched networks.
 
+## Streaming latency
+
+- [Apple HLS playlist and segment overview](https://developer.apple.com/documentation/http-live-streaming/example-playlists-for-http-live-streaming) — explains playlists indexing media segments.
+- [Apple Low-Latency HLS requirements](https://developer.apple.com/documentation/http-live-streaming/enabling-low-latency-http-live-streaming-hls) — explains the additional server and player support needed for Low-Latency HLS.
+
 ## Community reports relevant to the unresolved TV issue
 
 - [Tizen 6.5 monitor viewer does not request TURN info](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919) — a user report involving a different Samsung monitor and Aqara camera. It is a comparison, not an official Samsung diagnosis or a confirmed fix for this bridge.
