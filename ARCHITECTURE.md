@@ -119,14 +119,22 @@ For viewing while the built-in SmartThings TV player remains unresolved, the cur
 
 **Status: unresolved as of 2026-11-27. The root cause has not been confirmed.** SmartThings mobile playback works, but the Samsung BU8000 TV (Tizen 6.5) continues to show a loading spinner. Google Home is working through its separate HLS path.
 
-### Evidence from the latest available TV trace
+### Latest synchronized attempt (2026-11-27)
+
+- The Worker received the TV's st.webrtc.sdpOffer. The offer had host and server-reflexive candidates, no relay candidate, and no iceServers argument (provided: false).
+- The Worker delivered the TURN state callback successfully (HTTP 204), but emitted no answer_received event. After about 8.7 seconds, it returned DEVICE-UNAVAILABLE; the command response contained no sdpAnswer or deviceIce.
+- A simultaneous all-TCP/UDP packet capture recorded two successful STUN Binding exchanges. It showed no UDP traffic to a camera peer/relay, and no TCP traffic on ports 3478 or 5349. The capture cannot identify encrypted TCP/443 traffic as camera media.
+
+This attempt failed in the Worker-to-Tuya signaling path before a camera answer was returned. It does not test whether the TV can apply an answer or establish media. The exact failed MQTT/signaling stage was hidden by a generic error; tuya_webrtc_exchange_failed diagnostics now record a safe stage and reason without credentials or payloads.
+
+### Evidence from an earlier attempt with a complete answer
 
 - The TV sent a WebRTC offer with audio and video. The summarized offer had host and server-reflexive ICE candidates, no relay candidate, and no `iceServers` argument (`provided: false`). In that captured attempt, the Worker saw no `requestTurnInfo` or `clientIce` command.
 - The Worker had already published TURN information during state refresh. During the offer flow, the SmartThings state callback returned HTTP 204 (`delivered: true`). This shows SmartThings accepted the callback; it does **not** show that the TV read or used the TURN state.
 - Tuya returned a full H.264 answer. The TV-specific response kept the video section active, rejected audio, embedded the received host/server-reflexive/relay candidates, and also returned three `deviceIce` states aimed at the active video media section.
 - The Worker returned HTTP 200 for the command response with no device error. The TV still buffered.
 
-These results confirm that the Worker completed the observed signaling exchange and returned an answer. They do **not** establish that Tizen accepted that answer, completed ICE checks, established DTLS, received media packets, or decoded/rendered video. There is no TV-side WebRTC state or playback error in the available trace.
+These earlier results confirm that the Worker completed that signaling exchange and returned an answer. They do **not** establish that Tizen accepted that answer, completed ICE checks, established DTLS, received media packets, or decoded/rendered video. There is no TV-side WebRTC state or playback error in the available trace.
 
 An earlier capture showed a 123-character Tuya answer with no media sections. Later traces returned full SDP answers, so treat the 123-character response as a previously observed failure, not as the current known blocker.
 
@@ -138,7 +146,7 @@ The following are hypotheses, not conclusions:
 2. The TV may be attempting ICE checks, but the router, extender, NAT path, or Tuya media path may prevent connectivity.
 3. The TV may receive an answer but reject SDP details or fail later during DTLS, media reception, or decoding.
 
-The current trace does not distinguish these cases. Do not label this as a confirmed Tizen firmware defect or as a proven router issue.
+The earlier successful-answer trace does not distinguish these cases. The latest synchronized attempt failed earlier, inside the Worker-to-Tuya signaling path. Do not label the playback failure as a confirmed Tizen firmware defect or as a proven router issue.
 
 A SmartThings Community post describes a similar endless spinner on a different Samsung Tizen 6.5 monitor; its trace showed no `requestTurnInfo` for that viewer. This is useful comparison evidence, but it concerns another camera and device, not Samsung confirmation of this BU8000 issue or a verified fix: [Tizen 6.5 monitor report](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919).
 

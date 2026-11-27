@@ -1,5 +1,6 @@
 dist/
 site.tar.gz
+.wrangler/
 .env
 .env.*
 **/tuya-credentials

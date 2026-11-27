@@ -471,6 +471,8 @@ async function handleSmartThings(body, env) {
               event: "turn_info_primed",
               sourceType: "state_refresh",
               urlScheme: new URL(turnState.value.turnUrl).protocol.replace(":", ""),
+              turnEndpoint: summarizeIceServerUrl(turnState.value.turnUrl),
+              iceServerEndpoints: getTuyaIceServers(config).map((server) => summarizeIceServerUrl(server.urls)),
             }));
           }
         } catch {
@@ -540,6 +542,8 @@ async function handleSmartThings(body, env) {
                 event: "turn_info_primed",
                 sourceType: "device_refresh",
                 urlScheme: new URL(turnState.value.turnUrl).protocol.replace(":", ""),
+                turnEndpoint: summarizeIceServerUrl(turnState.value.turnUrl),
+                iceServerEndpoints: getTuyaIceServers(config).map((server) => summarizeIceServerUrl(server.urls)),
               }));
             }
           } catch {
@@ -618,6 +622,7 @@ async function handleSmartThings(body, env) {
               retriedAfter401: callbackResult.retriedAfter401 ?? false,
               reason: callbackResult.reason ?? null,
               urlScheme: /^([a-z0-9+.-]+):/i.exec(turn.urls)?.[1]?.toLowerCase() || null,
+              turnEndpoint: summarizeIceServerUrl(turn.urls),
             }));
             if (callbackResult.delivered) await new Promise((resolve) => setTimeout(resolve, 200));
           }
@@ -646,6 +651,7 @@ async function handleSmartThings(body, env) {
             answerMessages: exchange.answerMessages.map(summarizeSdp),
             tuyaCandidateCount: exchange.candidates.length,
             tuyaCandidateTypes: exchange.candidates.map(summarizeIceCandidate),
+            tuyaCandidateEndpoints: exchange.candidates.map(summarizeIceCandidateEndpoint),
           }));
           if (embeddedCandidates.addedCount) {
             console.info(JSON.stringify({
@@ -681,7 +687,13 @@ async function handleSmartThings(body, env) {
           });
           states.push(...deviceIceStates(exchange.candidates, streamId, responseAnswer));
           deviceError = undefined;
-        } catch {
+        } catch (error) {
+          console.info(JSON.stringify({
+            source: "smartthings_sdp_probe",
+            event: "tuya_webrtc_exchange_failed",
+            stage: error?.safeStage || "unknown",
+            reason: error?.safeReason || "failed",
+          }));
           deviceError = [{ errorEnum: "DEVICE-UNAVAILABLE", detail: "Tuya could not establish the WebRTC camera stream." }];
         }
       } else if (command.command === "clientIce") {
@@ -702,6 +714,7 @@ async function handleSmartThings(body, env) {
             source: "smartthings_sdp_probe",
             event: "client_ice_received",
             candidate: summarizeIceCandidate(candidate),
+            candidateEndpoint: summarizeIceCandidateEndpoint(candidate),
             sdpMid: hint?.sdpMid || null,
             sdpMLineIndex: Number.isInteger(hint?.sdpMLineIndex) ? hint.sdpMLineIndex : null,
           }));
@@ -713,6 +726,7 @@ async function handleSmartThings(body, env) {
             source: "smartthings_sdp_probe",
             event: "client_ice_exchange_completed",
             candidateTypes: exchange.candidates.map(summarizeIceCandidate),
+            candidateEndpoints: exchange.candidates.map(summarizeIceCandidateEndpoint),
           }));
           states.push(...deviceIceStates(exchange.candidates, streamId, undefined, hint));
           deviceError = undefined;
@@ -728,6 +742,7 @@ async function handleSmartThings(body, env) {
             event: "turn_info_requested",
             turnAvailable: Boolean(turn),
             urlScheme: turn ? new URL(turn.urls).protocol.replace(":", "") : null,
+            turnEndpoint: turn ? summarizeIceServerUrl(turn.urls) : null,
             streamIdProvided: typeof command.arguments?.[0] === "string" && Boolean(command.arguments[0]),
           }));
           if (turn) {
@@ -1303,6 +1318,7 @@ function summarizeSdp(sdp) {
   return {
     chars: sdp.length,
     hasBundle: lines.some((line) => line.startsWith("a=group:BUNDLE")),
+    candidateEndpoints: candidates.map(summarizeIceCandidateEndpoint),
     candidateTypes: [...new Set(candidates.map((candidate) => `${candidate.type}/${candidate.protocol}`))],
     sections: sections.map((section) => ({
       ...section,
@@ -1318,6 +1334,65 @@ function summarizeIceCandidate(candidate) {
   const type = /\btyp\s+(host|srflx|prflx|relay)\b/i.exec(value)?.[1]?.toLowerCase() || "unknown";
   const protocol = /\bcandidate:\S+\s+\d+\s+(udp|tcp)\b/i.exec(value)?.[1]?.toLowerCase() || "unknown";
   return { type, protocol };
+}
+
+function summarizeIceCandidateEndpoint(candidate) {
+  const value = typeof candidate === "string" ? candidate : candidate?.candidate || "";
+  const fields = value.replace(/^a=/i, "").trim().split(/\s+/);
+  const port = Number(fields[5]);
+  return {
+    ...summarizeIceCandidate(value),
+    address: summarizeIceAddress(fields[4]),
+    port: Number.isInteger(port) && port > 0 && port <= 65535 ? port : null,
+  };
+}
+
+function summarizeIceServerUrl(url) {
+  const match = /^(stun|turns?):(.+)$/i.exec(url.trim());
+  if (!match) return { scheme: null, host: null, port: null, transport: null };
+  const scheme = match[1].toLowerCase();
+  const suffix = match[2].replace(/^\/\//, "");
+  const authority = suffix.split(/[?#]/, 1)[0].split("@").at(-1);
+  let host;
+  let portText;
+  const bracketed = /^(\[[^\]]+\])(?::(\d+))?$/.exec(authority);
+  if (bracketed) {
+    host = bracketed[1].slice(1, -1);
+    portText = bracketed[2];
+  } else {
+    const hostPort = /^([^:]+)(?::(\d+))?$/.exec(authority);
+    if (!hostPort) return { scheme, host: null, port: null, transport: null };
+    host = hostPort[1];
+    portText = hostPort[2];
+  }
+  const query = suffix.split("?", 2)[1] || "";
+  const transport = new URLSearchParams(query).get("transport")?.toLowerCase() || "udp";
+  const defaultPort = scheme === "turns" ? 5349 : 3478;
+  const parsedPort = portText ? Number(portText) : defaultPort;
+  return {
+    scheme,
+    host: summarizeIceAddress(host),
+    port: Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535 ? parsedPort : null,
+    transport,
+  };
+}
+
+function summarizeIceAddress(address) {
+  if (typeof address !== "string" || !address) return null;
+  const value = address.replace(/^\[|\]$/g, "");
+  const lower = value.toLowerCase();
+  if (lower.endsWith(".local")) return "mdns";
+  const octets = lower.split(".").map(Number);
+  if (octets.length === 4 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)) {
+    const [first, second] = octets;
+    if (first === 10 || first === 127 || first === 0 || first === 169 && second === 254 ||
+      first === 172 && second >= 16 && second <= 31 || first === 192 && second === 168 ||
+      first === 100 && second >= 64 && second <= 127 || first >= 224) return "private";
+  }
+  if (lower === "::1" || lower.startsWith("fe80:") || lower.startsWith("fc") || lower.startsWith("fd")) {
+    return "private";
+  }
+  return value;
 }
 
 function hasActiveMediaSection(sdp) {
@@ -1494,6 +1569,7 @@ function summarizeIceServers(iceServers) {
   return {
     provided: true,
     urlSchemes: [...new Set(urls.filter((url) => typeof url === "string").map((url) => url.split(":", 1)[0].toLowerCase()))],
+    urlEndpoints: urls.filter((url) => typeof url === "string").map(summarizeIceServerUrl),
     hasUsername: typeof iceServers.username === "string" && Boolean(iceServers.username),
     hasPassword: typeof iceServers.password === "string" && Boolean(iceServers.password),
   };
@@ -1505,14 +1581,14 @@ async function smartThingsSessionId(streamId) {
 }
 
 async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionId, type, message, expectedType) {
-  const uid = await getTuyaCameraUid(camera, tuyaToken, env);
-  const mqttConfig = await tuyaRequest("POST", "/v1.0/open-hub/access/config", {
+  const uid = await withTuyaDiagnosticStage("camera_uid", () => getTuyaCameraUid(camera, tuyaToken, env));
+  const mqttConfig = await withTuyaDiagnosticStage("mqtt_access_config", () => tuyaRequest("POST", "/v1.0/open-hub/access/config", {
     uid,
     link_id: "rme360",
     link_type: "mqtt",
     topics: "ipc",
-  }, tuyaToken, env);
-  const broker = parseTuyaMqttUrl(mqttConfig.url);
+  }, tuyaToken, env));
+  const broker = await withTuyaDiagnosticStage("mqtt_broker_config", () => parseTuyaMqttUrl(mqttConfig.url));
   const sourceTopic = mqttConfig.source_topic?.ipc;
   const sinkTemplate = mqttConfig.sink_topic?.ipc;
   const mqttUserId = typeof sourceTopic === "string" ? sourceTopic.split("/").filter(Boolean).at(-1) : "";
@@ -1520,14 +1596,17 @@ async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionI
     ? sinkTemplate.replace("moto_id", webRtcConfig.moto_id).replace("{device_id}", camera.device_id)
     : "";
   if (!uid || !mqttUserId || !publishTopic || !mqttConfig.client_id || !mqttConfig.username || !mqttConfig.password) {
-    throw new Error("Tuya did not return complete MQTT signaling details");
+    const error = new Error("Tuya did not return complete MQTT signaling details");
+    error.safeStage = "mqtt_signaling_config";
+    error.safeReason = "invalid_response";
+    throw error;
   }
 
   const { connect } = await import("cloudflare:sockets");
   const socket = connect({ hostname: broker.hostname, port: broker.port }, {
     secureTransport: broker.secure ? "on" : "off",
   });
-  await socket.opened;
+  await withTuyaDiagnosticStage("mqtt_broker_connect", () => socket.opened);
   const writer = socket.writable.getWriter();
   const reader = new MqttPacketReader(socket.readable.getReader());
   const matching = [];
@@ -1558,7 +1637,8 @@ async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionI
   const readUntil = async (typeToFind, idToFind, timeoutMs) => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      const packet = await reader.readPacket(deadline - Date.now());
+      const packet = await withTuyaDiagnosticStage("mqtt_wait_packet_" + typeToFind, () =>
+        reader.readPacket(deadline - Date.now()));
       if (packet.type === 3) {
         await receivePublish(packet);
         continue;
@@ -1577,17 +1657,21 @@ async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionI
       mqttString(mqttConfig.username),
       mqttString(mqttConfig.password),
     );
-    await writer.write(mqttPacket(0x10, connectPayload));
-    const connack = await readUntil(2, undefined, 6000);
-    if (connack.payload.length < 2 || connack.payload[1] !== 0) throw new Error("Tuya MQTT rejected the connection");
+    await withTuyaDiagnosticStage("mqtt_connect", async () => {
+      await writer.write(mqttPacket(0x10, connectPayload));
+      const connack = await readUntil(2, undefined, 6000);
+      if (connack.payload.length < 2 || connack.payload[1] !== 0) throw new Error("Tuya MQTT rejected the connection");
+    });
 
-    const subscriptionId = packetId++;
-    await writer.write(mqttPacket(0x82, concatBytes(
-      new Uint8Array([subscriptionId >> 8, subscriptionId & 0xff]),
-      mqttString(sourceTopic),
-      new Uint8Array([1]),
-    )));
-    await readUntil(9, subscriptionId, 5000);
+    await withTuyaDiagnosticStage("mqtt_subscribe", async () => {
+      const subscriptionId = packetId++;
+      await writer.write(mqttPacket(0x82, concatBytes(
+        new Uint8Array([subscriptionId >> 8, subscriptionId & 0xff]),
+        mqttString(sourceTopic),
+        new Uint8Array([1]),
+      )));
+      await readUntil(9, subscriptionId, 5000);
+    });
 
     const envelope = {
       protocol: 302,
@@ -1605,43 +1689,47 @@ async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionI
         msg: message,
       },
     };
-    const publishId = packetId++;
-    const publishPayload = concatBytes(
-      mqttString(publishTopic),
-      new Uint8Array([publishId >> 8, publishId & 0xff]),
-      new TextEncoder().encode(JSON.stringify(envelope)),
-    );
-    await writer.write(mqttPacket(0x32, publishPayload));
-    await readUntil(4, publishId, 5000);
+    await withTuyaDiagnosticStage("mqtt_publish_offer", async () => {
+      const publishId = packetId++;
+      const publishPayload = concatBytes(
+        mqttString(publishTopic),
+        new Uint8Array([publishId >> 8, publishId & 0xff]),
+        new TextEncoder().encode(JSON.stringify(envelope)),
+      );
+      await writer.write(mqttPacket(0x32, publishPayload));
+      await readUntil(4, publishId, 5000);
+    });
 
     let answer;
     if (expectedType === "answer") {
-      const answerDeadline = Date.now() + 5500;
-      let lastMessageAt = Date.now();
-      while (Date.now() < answerDeadline) {
-        const timeout = Math.max(1, answer ? Math.min(900, answerDeadline - Date.now()) : answerDeadline - Date.now());
-        let packet;
-        try {
-          packet = await reader.readPacket(timeout);
-        } catch (error) {
-          if (answer && /timed out/i.test(String(error?.message || error))) break;
-          throw error;
-        }
-        if (packet.type === 3) {
-          const before = matching.length;
-          await receivePublish(packet);
-          if (matching.length > before) lastMessageAt = Date.now();
-          const answers = matching.filter((entry) => entry.type === "answer");
-          const mediaAnswer = answers.findLast((entry) => hasActiveMediaSection(entry.value));
-          if (mediaAnswer) {
-            answer = mediaAnswer.value;
-          } else if (!answer && answers.length) {
-            answer = answers.at(-1).value;
+      await withTuyaDiagnosticStage("camera_answer", async () => {
+        const answerDeadline = Date.now() + 5500;
+        let lastMessageAt = Date.now();
+        while (Date.now() < answerDeadline) {
+          const timeout = Math.max(1, answer ? Math.min(900, answerDeadline - Date.now()) : answerDeadline - Date.now());
+          let packet;
+          try {
+            packet = await reader.readPacket(timeout);
+          } catch (error) {
+            if (answer && /timed out/i.test(String(error?.message || error))) break;
+            throw error;
           }
+          if (packet.type === 3) {
+            const before = matching.length;
+            await receivePublish(packet);
+            if (matching.length > before) lastMessageAt = Date.now();
+            const answers = matching.filter((entry) => entry.type === "answer");
+            const mediaAnswer = answers.findLast((entry) => hasActiveMediaSection(entry.value));
+            if (mediaAnswer) {
+              answer = mediaAnswer.value;
+            } else if (!answer && answers.length) {
+              answer = answers.at(-1).value;
+            }
+          }
+          if (answer && Date.now() - lastMessageAt >= 750) break;
         }
-        if (answer && Date.now() - lastMessageAt >= 750) break;
-      }
-      if (!answer) throw new Error("The camera did not answer the WebRTC offer");
+        if (!answer) throw new Error("The camera did not answer the WebRTC offer");
+      });
     } else if (expectedType === "candidate") {
       const candidateDeadline = Date.now() + 1200;
       while (Date.now() < candidateDeadline) {
@@ -1670,6 +1758,22 @@ async function tuyaWebRtcExchange(camera, webRtcConfig, tuyaToken, env, sessionI
     } catch {
       // Closing is best effort after the signaling exchange.
     }
+  }
+}
+
+async function withTuyaDiagnosticStage(stage, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error?.safeStage) throw error;
+    const message = String(error?.message || error);
+    const wrapped = new Error("Tuya WebRTC stage failed");
+    wrapped.safeStage = stage;
+    wrapped.safeReason = /did not answer/i.test(message) ? "no_camera_answer" :
+      /timed out/i.test(message) ? "timeout" :
+      /rejected/i.test(message) ? "rejected" :
+      "failed";
+    throw wrapped;
   }
 }
 
