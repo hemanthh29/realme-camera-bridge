@@ -39,6 +39,7 @@ This page collects the consoles, official documentation, and investigation repor
 
 ## Tuya camera signaling
 
+- [Link devices to a Tuya cloud project](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl) — describes linking devices from a Smart Life/Tuya app account to a cloud project.
 - [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) — device configuration and MQTT signaling flow used by the current SmartThings implementation.
 - [Tuya RTSP allocation](https://developer.tuya.com/en/docs/iot/rtsp?id=Kacsdjcqllyql) — consulted during the earlier RTSP approach; the current SmartThings path uses WebRTC instead.
 

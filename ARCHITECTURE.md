@@ -36,6 +36,12 @@ The Worker handles authorization, device discovery/status, HLS allocation for Go
 
 The Worker has a `PAIRING_RATE_LIMITER` binding configured for five pairing submissions per 60 seconds per client IP key. SmartThings and Google Home pairing attempts use separate keys.
 
+## Tested camera and Tuya account link
+
+The tested hardware is the **realme 360 camera**, which pairs with the Smart Life app and is Tuya-backed. The camera is paired in Smart Life first. The owner then links that Smart Life account to a Tuya IoT cloud project from the project's **Devices > Link Tuya App Account** flow, approving the QR prompt in Smart Life. This authorizes the cloud project to access devices already associated with that app account; the camera itself is not added as a code artifact or a separate repository project. The bridge's private camera configuration uses the Tuya device ID (and, where needed, its Tuya user ID).
+
+Only the realme 360 camera has been tested with this bridge. Other Tuya-backed cameras may be compatible when the linked Tuya project provides the required device status and camera streaming APIs, including HLS allocation for Google Home and WebRTC configuration/signaling for SmartThings. A Tuya or Smart Life label by itself does not establish compatibility; other models and regions remain unverified. See [Tuya's device-linking guide](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl).
+
 ## Routes
 
 | Route | Method | Purpose |

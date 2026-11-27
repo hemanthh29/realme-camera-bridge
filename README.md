@@ -9,6 +9,12 @@ See [REFERENCES.md](REFERENCES.md) for the Cloudflare, Google Home, SmartThings,
 
 Google Home and SmartThings on mobile are reported working. SmartThings live video on the Samsung BU8000 TV still buffers. Its root cause is **unknown**; successful Worker responses do not prove that the TV completed ICE negotiation or rendered video. See [the investigation notes](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers) and [CONTRIBUTING.md](CONTRIBUTING.md) for the evidence and next diagnostic steps.
 
+## Tested camera and compatibility
+
+The tested camera is the **realme 360 camera**, a Tuya-backed camera that pairs with the **Smart Life** app. The owner's Smart Life account is linked to a Tuya IoT cloud project so the project can access the account's authorized devices through Tuya APIs. In the Tuya Developer Platform, this is done under the project's **Devices** tab with **Link Tuya App Account**; the account owner scans the QR code in Smart Life and approves the link. The camera is paired to Smart Life first, then made available to the cloud project through that account link. It is not uploaded as source code or created as a product in this repository.
+
+This bridge has been tested with the realme 360 camera only. Other Tuya-backed or Powered by Tuya cameras **may** work if they can be linked to the Smart Life account and their Tuya cloud project exposes the camera status and streaming APIs this bridge needs: HLS allocation for Google Home and WebRTC configuration/signaling for SmartThings. Tuya branding alone does not guarantee compatibility; support for other camera models, app regions, and firmware is unverified. See [Tuya's device-linking guide](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl).
+
 ## Repository map
 
 - `worker/index.js` — Cloudflare Worker source; edit this file.
