@@ -14,6 +14,7 @@ Thanks for helping with the Realme Camera Bridge. The main unresolved task is Sm
 | `scripts/deploy-cloudflare.py` | Uploads the Worker and private runtime bindings to Cloudflare. |
 | `ARCHITECTURE.md` | Runtime flow, platform behavior, and current known issue. |
 | `test-worker.mjs` | Legacy RTSP-era test harness; it does not validate the current SmartThings WebRTC implementation. |
+| `REFERENCES.md` | Platform consoles, official documentation, and related community reports. |
 
 Edit `worker/index.js`, not generated files in `dist/`.
 
@@ -30,18 +31,26 @@ These commands do **not** contact Google, SmartThings, Tuya, Cloudflare, or a TV
 
 `test-worker.mjs` still expects the old SmartThings RTSP handler and reads private local credentials. Do not treat it as a test of the current WebRTC behavior. Migrating it to mock the current SmartThings WebRTC and Tuya MQTT flow is a useful first code contribution; do not put real credentials into test fixtures.
 
-For a focused change, create a branch, edit the source or docs, run the safe checks, then open a pull request:
+Yes: contributors should make commits on a separate feature branch, not directly on `main`. Push that branch and open a pull request targeting `main`; the maintainer reviews and merges it. This repo is private, so contributors need access to the repository. The workflow below documents the convention; GitHub branch protection is a separate repository setting.
+
+Start from an up-to-date `main`, create a branch, edit the source or docs, run the safe checks, then push the branch and open a pull request:
 
 ```sh
+git switch main
+git pull --ff-only
 git switch -c fix/short-description
 # make the change
 git diff --check
 npm run build
 npm run validate
 git status --short
+git add README.md  # replace with the reviewed file paths you changed
+git diff --cached
+git commit -m "Describe the change"
+git push -u origin fix/short-description
 ```
 
-Review the diff before committing. Do not include `dist/`, local credentials, or generated Python cache files.
+Open a pull request from `fix/short-description` to `main`. Review the diff before committing. Do not include `dist/`, local credentials, or generated Python cache files.
 
 ## Private configuration and deployment
 
@@ -117,3 +126,5 @@ Do not include OAuth/PAT/API tokens, pairing codes, camera serials or cloud IDs,
 - For SmartThings changes, compare a TV attempt with a working phone attempt when possible.
 - State what was verified, what was not verified, and whether the change was only built, deployed, or observed playing on the TV.
 - Never describe the Tizen hypothesis as confirmed until client-side or network evidence supports it.
+
+For the platform consoles and documentation used to implement and investigate this project, see [REFERENCES.md](REFERENCES.md).

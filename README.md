@@ -3,6 +3,7 @@
 This Cloudflare Worker connects Tuya-backed Realme cameras to Google Home and SmartThings. Google Home requests HLS streams; SmartThings uses WebRTC signaling, with media carried over Tuya's peer-to-peer path or TURN relay. It does not keep a camera feed running on a home computer.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed components, OAuth and stream flows, runtime configuration, and current limitations.
+See [REFERENCES.md](REFERENCES.md) for the Cloudflare, Google Home, SmartThings, Tuya, Samsung, and network documentation used by the project.
 
 ## Current status
 
@@ -15,6 +16,7 @@ Google Home and SmartThings on mobile are reported working. SmartThings live vid
 - `scripts/` — build, artifact validation, KV setup, and owner-only deployment helpers.
 - `ARCHITECTURE.md` — system design and current TV streaming investigation.
 - `CONTRIBUTING.md` — local workflow, safe log collection, and issue report checklist.
+- `REFERENCES.md` — consoles, official platform documentation, and related community reports.
 - `dist/` — generated build output; do not edit or commit it.
 
 ## Endpoints

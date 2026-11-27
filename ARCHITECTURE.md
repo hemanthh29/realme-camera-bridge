@@ -141,3 +141,5 @@ The workspace configuration directory defaults to the adjacent `work/` directory
 - SmartThings' pre-made WebRTC camera profile includes motion state, currently reported as inactive; Tuya motion events are not mapped yet.
 - SmartThings state refresh depends on Tuya's online status API. Google Home's QUERY behavior is intentionally unchanged and remains configuration-based.
 - No FTP service, continuous recording, local relay, or camera management UI is implemented.
+
+For the official platform documentation and console links used by this project, see [REFERENCES.md](REFERENCES.md).
