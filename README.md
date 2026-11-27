@@ -41,7 +41,7 @@ This bridge has been tested with the realme 360 camera only. Other Tuya-backed o
 
 ## Deployment
 
-Deployment is for the repo owner or an authorized operator. Follow the private configuration checklist in [CONTRIBUTING.md](CONTRIBUTING.md) before running `python3 scripts/deploy-cloudflare.py`. The script uploads the Worker and its secret bindings, enables its `workers.dev` URL, and checks `/health`.
+To deploy, configure the Cloudflare API token and runtime settings described in [CONTRIBUTING.md](CONTRIBUTING.md), then run `python3 scripts/deploy-cloudflare.py`. The script uploads the Worker and its secret bindings, enables its `workers.dev` URL, and checks `/health`.
 
 The script reads Google OAuth settings from `oauth-config.json`, camera data from `camera-config.json`, and Tuya credentials from `tuya-credentials` in the workspace config directory. By default, that is the adjacent `work/` directory in this checkout layout; set `REALME_CAMERA_WORKDIR` to use another location. SmartThings OAuth client credentials and optional per-platform pairing-code overrides are stored in `~/.config/realme-camera-bridge/`. Cloudflare access is stored there as well. Keep these files private and set permissions to `600`.
 

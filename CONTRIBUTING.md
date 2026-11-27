@@ -54,7 +54,7 @@ Open a pull request from `fix/short-description` to `main`. Review the diff befo
 
 ## Private configuration and deployment
 
-Most contributors only need the local build commands above. Live deployment is for the repo owner or an explicitly authorized operator. Never commit or paste credentials into pull requests, logs, issue comments, or chat.
+Most contributors only need the local build commands above. Deploying requires the Cloudflare API token and private runtime configuration listed below. Never commit or paste credentials into pull requests, logs, issue comments, or chat.
 
 The deploy helper reads these private files:
 
