@@ -69,3 +69,7 @@ Edit `worker/index.js`, not the generated file under `dist/`.
 ## Contributing
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md). It explains the safe local checks and what evidence is needed to investigate the unresolved TV issue.
+
+## License
+
+Original project code and documentation are licensed under the [MIT License](LICENSE). Third-party logos, trademarks, and other materials remain subject to their respective rights and terms.
