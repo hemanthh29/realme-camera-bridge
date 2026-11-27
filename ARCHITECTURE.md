@@ -1,4 +1,4 @@
-# Realme Camera Bridge: deployed architecture
+# Realme Camera Bridge: architecture and current status
 
 **Scope:** Cloudflare Worker for Google Home and SmartThings. The Google Home HLS path remains the existing implementation; SmartThings uses the Tuya WebRTC signaling path.
 
@@ -88,6 +88,39 @@ The webhook accepts `st-schema` version `1.0` interactions and validates the Sma
 - Unsupported capabilities and commands return Schema device errors.
 
 Tuya WebRTC uses `GET /v1.0/devices/{device_id}/webrtc-configs` and `POST /v1.0/open-hub/access/config`. The Worker obtains the Tuya user ID from the configured camera data or device details, subscribes to the MQTT source topic, and publishes protocol 302 WebRTC messages to the sink topic. SmartThings uses its built-in `c2c-camera-webrtc-3` device handler. See [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
+
+## Known issue: SmartThings TV video buffers
+
+**Status: unresolved as of 2026-11-27. The root cause has not been confirmed.** SmartThings mobile playback works, but the Samsung BU8000 TV (Tizen 6.5) continues to show a loading spinner. Google Home is working through its separate HLS path.
+
+### Evidence from the latest available TV trace
+
+- The TV sent a WebRTC offer with audio and video. The summarized offer had host and server-reflexive ICE candidates, no relay candidate, and no `iceServers` argument (`provided: false`). In that captured attempt, the Worker saw no `requestTurnInfo` or `clientIce` command.
+- The Worker had already published TURN information during state refresh. During the offer flow, the SmartThings state callback returned HTTP 204 (`delivered: true`). This shows SmartThings accepted the callback; it does **not** show that the TV read or used the TURN state.
+- Tuya returned a full H.264 answer. The TV-specific response kept the video section active, rejected audio, embedded the received host/server-reflexive/relay candidates, and also returned three `deviceIce` states aimed at the active video media section.
+- The Worker returned HTTP 200 for the command response with no device error. The TV still buffered.
+
+These results confirm that the Worker completed the observed signaling exchange and returned an answer. They do **not** establish that Tizen accepted that answer, completed ICE checks, established DTLS, received media packets, or decoded/rendered video. There is no TV-side WebRTC state or playback error in the available trace.
+
+An earlier capture showed a 123-character Tuya answer with no media sections. Later traces returned full SDP answers, so treat the 123-character response as a previously observed failure, not as the current known blocker.
+
+### What remains uncertain
+
+The following are hypotheses, not conclusions:
+
+1. The TV viewer may not be applying the TURN information that SmartThings Cloud already holds.
+2. The TV may be attempting ICE checks, but the router, extender, NAT path, or Tuya media path may prevent connectivity.
+3. The TV may receive an answer but reject SDP details or fail later during DTLS, media reception, or decoding.
+
+The current trace does not distinguish these cases. Do not label this as a confirmed Tizen firmware defect or as a proven router issue.
+
+A SmartThings Community user reported a similar endless spinner on a different Samsung Tizen 6.5 monitor; their trace showed no `requestTurnInfo` for that viewer. This is useful comparison evidence, but it is a user report about another camera and device, not Samsung confirmation of this BU8000 issue or a verified fix: [Tizen 6.5 monitor report](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919).
+
+### Next useful diagnostic
+
+Capture packets at a point that can actually see the TV's traffic: router/AP packet capture, a mirrored switch port, or a setup that routes the TV through the capture laptop. Running `tcpdump` on an ordinary laptop connected to the same switched LAN usually sees only that laptop's traffic. A capture can show whether the TV sends UDP/STUN/TURN traffic and whether replies arrive; it cannot by itself prove video decoding succeeded. See the [Wireshark capture FAQ](https://www.wireshark.org/faq.html).
+
+For a single attempt, correlate the packet capture with the Cloudflare events listed in [CONTRIBUTING.md](CONTRIBUTING.md#collecting-tv-streaming-evidence). Never publish raw packet captures, TURN credentials, OAuth tokens, complete callback payloads, or unredacted camera identifiers.
 
 ## Runtime configuration and deployment
 
