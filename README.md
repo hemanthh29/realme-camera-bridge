@@ -16,6 +16,14 @@ See [REFERENCES.md](REFERENCES.md) for the Cloudflare, Google Home, SmartThings,
 
 See [streaming behavior and future work](ARCHITECTURE.md#streaming-behavior-and-future-work) and the [TV investigation notes](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers). These results apply to the tested realme 360 camera; compatibility with other models is unverified.
 
+## Future implementation
+
+- **Google Home WebRTC:** The bridge currently uses HLS for Google Home. A future implementation could translate Google CameraStream WebRTC offers and signaling into Tuya's WebRTC/MQTT flow, potentially reducing live delay on supported Google screens. Google surfaces must be tested individually; this is not implemented yet, and the existing HLS path should remain available.
+- **Samsung Tizen TV:** Continue investigating why SmartThings buffers on the BU8000 using a controlled TV trace and a working mobile comparison. Only try TV-specific signaling changes when the trace points to a concrete mismatch, then confirm SmartThings mobile still works. The built-in Tizen viewer's issue remains unresolved.
+- **Viewing alternatives:** SmartThings mobile is the verified option while the TV issue is unresolved. An external Cast or Google TV receiver could be tested with the Google Home HLS stream; this has not been tested on this setup and may retain HLS delay.
+
+See [the architecture notes](ARCHITECTURE.md#streaming-behavior-and-future-work) for protocol details and diagnostics.
+
 ## Tested camera and compatibility
 
 The tested camera is the **realme 360 camera**, a Tuya-backed camera that pairs with the **Smart Life** app. In the tested setup, the camera is paired in Smart Life, then that Smart Life account is linked to a Tuya IoT cloud project so the project can access its authorized devices through Tuya APIs. In the Tuya Developer Platform, open the project's **Devices** tab, choose **Link Tuya App Account**, then scan and approve the QR code in Smart Life. The camera becomes available to the cloud project through this account link; it is not uploaded as source code or created as a product in this repository.
@@ -26,7 +34,7 @@ This bridge has been tested with the realme 360 camera only. Other Tuya-backed o
 
 - `worker/index.js` — Cloudflare Worker source; edit this file.
 - `wrangler.jsonc` — Worker name, compatibility date, rate limit, and KV binding.
-- `scripts/` — build, artifact validation, KV setup, and owner-only deployment helpers.
+- `scripts/` — build, artifact validation, KV setup, and deployment helpers.
 - `ARCHITECTURE.md` — system design and current TV streaming investigation.
 - `CONTRIBUTING.md` — local workflow, safe log collection, and issue report checklist.
 - `REFERENCES.md` — consoles, official platform documentation, and related community reports.

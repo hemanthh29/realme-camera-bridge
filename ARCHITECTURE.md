@@ -38,7 +38,7 @@ The Worker has a `PAIRING_RATE_LIMITER` binding configured for five pairing subm
 
 ## Tested camera and Tuya account link
 
-The tested hardware is the **realme 360 camera**, which pairs with the Smart Life app and is Tuya-backed. In the tested setup, the camera is paired in Smart Life, then that Smart Life account is linked to a Tuya IoT cloud project through **Devices > Link Tuya App Account** and the QR approval in Smart Life. This authorizes the cloud project to access devices associated with that app account; the camera itself is not added as a code artifact or a separate repository project. The bridge's private camera configuration uses the Tuya device ID (and, where needed, its Tuya user ID).
+The tested hardware is the **realme 360 camera**, which pairs with the Smart Life app and is Tuya-backed. In the tested setup, the camera is paired in Smart Life, then that Smart Life account is linked to a Tuya IoT cloud project through **Devices > Link Tuya App Account** and the QR approval in Smart Life. This authorizes the cloud project to access devices associated with that app account; the camera itself is not added as a code artifact or a separate repository project. The bridge's private camera configuration uses the Tuya device ID (and, where needed, its Tuya account UID).
 
 Only the realme 360 camera has been tested with this bridge. Other Tuya-backed cameras may be compatible when the linked Tuya project provides the required device status and camera streaming APIs, including HLS allocation for Google Home and WebRTC configuration/signaling for SmartThings. A Tuya or Smart Life label by itself does not establish compatibility; other models and regions remain unverified. See [Tuya's device-linking guide](https://developer.tuya.com/en/docs/iot/link-devices?id=Ka471nu1sfmkl).
 
@@ -67,7 +67,7 @@ Both platforms share the OAuth endpoints and signed-token implementation, while 
 - Google access and refresh token behavior remains the existing behavior. SmartThings access tokens carry a SmartThings platform claim and its client ID, which keeps them separate from Google tokens even when their client IDs match.
 - SmartThings access tokens expire after 24 hours; refresh tokens are signed, self-contained, and expire after five years.
 
-The SmartThings authorization page explicitly identifies SmartThings and requires the user to tap its Authorize button. The Worker does not store an OAuth session database.
+The SmartThings authorization page explicitly identifies SmartThings and requires confirmation with its Authorize button. The Worker does not store an OAuth session database.
 
 ## Google Home path
 
@@ -93,7 +93,7 @@ The webhook accepts `st-schema` version `1.0` interactions and validates the Sma
 - SmartThings command responses include the current `st.healthCheck.healthStatus` state. The MQTT socket is opened only for signaling commands and is closed after the exchange; video bytes do not pass through the Worker.
 - Unsupported capabilities and commands return Schema device errors.
 
-Tuya WebRTC uses `GET /v1.0/devices/{device_id}/webrtc-configs` and `POST /v1.0/open-hub/access/config`. The Worker obtains the Tuya user ID from the configured camera data or device details, subscribes to the MQTT source topic, and publishes protocol 302 WebRTC messages to the sink topic. SmartThings uses its built-in `c2c-camera-webrtc-3` device handler. See [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
+Tuya WebRTC uses `GET /v1.0/devices/{device_id}/webrtc-configs` and `POST /v1.0/open-hub/access/config`. The Worker obtains the Tuya account UID from the configured camera data or device details, subscribes to the MQTT source topic, and publishes protocol 302 WebRTC messages to the sink topic. SmartThings uses its built-in `c2c-camera-webrtc-3` device handler. See [Tuya WebRTC](https://developer.tuya.com/en/docs/iot/webrtc?id=Kacsd4x2hl0se) and [SmartThings device handler types](https://developer.smartthings.com/docs/devices/cloud-connected/device-handler-types).
 
 ## Streaming behavior and future work
 
@@ -140,7 +140,7 @@ The following are hypotheses, not conclusions:
 
 The current trace does not distinguish these cases. Do not label this as a confirmed Tizen firmware defect or as a proven router issue.
 
-A SmartThings Community user reported a similar endless spinner on a different Samsung Tizen 6.5 monitor; their trace showed no `requestTurnInfo` for that viewer. This is useful comparison evidence, but it is a user report about another camera and device, not Samsung confirmation of this BU8000 issue or a verified fix: [Tizen 6.5 monitor report](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919).
+A SmartThings Community post describes a similar endless spinner on a different Samsung Tizen 6.5 monitor; its trace showed no `requestTurnInfo` for that viewer. This is useful comparison evidence, but it concerns another camera and device, not Samsung confirmation of this BU8000 issue or a verified fix: [Tizen 6.5 monitor report](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919).
 
 ### Next useful diagnostic
 
@@ -154,7 +154,7 @@ For a single attempt, correlate the packet capture with the Cloudflare events li
 
 - `oauth-config.json`: Google OAuth values and Google pairing PIN.
 - `smartthings-oauth.json`: SmartThings OAuth client ID and secret.
-- `camera-config.json`: camera names, Tuya device IDs, and optional Tuya user IDs. Google Home keeps using the existing device allocation route; SmartThings can retrieve the Tuya user ID separately for MQTT signaling.
+- `camera-config.json`: camera names, Tuya device IDs, and optional Tuya account UIDs. Google Home keeps using the existing device allocation route; SmartThings can retrieve the Tuya UID separately for MQTT signaling.
 - `tuya-credentials`: Tuya access ID and secret.
 - `~/.config/realme-camera-bridge/cloudflare-overrides.json`: optional Google and SmartThings pairing PIN overrides.
 - `~/.config/realme-camera-bridge/cloudflare-access.json`: Cloudflare account ID and deployment API token.

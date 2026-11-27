@@ -57,7 +57,7 @@ This page collects the consoles, official documentation, and investigation repor
 
 ## Community reports relevant to the unresolved TV issue
 
-- [Tizen 6.5 monitor viewer does not request TURN info](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919) — a user report involving a different Samsung monitor and Aqara camera. It is a comparison, not an official Samsung diagnosis or a confirmed fix for this bridge.
+- [Tizen 6.5 monitor viewer does not request TURN info](https://community.smartthings.com/t/tizen-6-5-monitor-camera-viewer-never-calls-webrtc-requestturninfo-turnsource-camera/311919) — a community report involving a different Samsung monitor and Aqara camera. It is a comparison, not an official Samsung diagnosis or a confirmed fix for this bridge.
 - [Aqara G350 Matter camera streaming report](https://community.smartthings.com/t/matter-camera-ui-looks-very-basic-in-smartthings-app-generated-presentation-instead-of-matter-camera/308853?page=2) — community report of a camera-side WebRTC answer problem fixed by camera firmware; different device and issue.
 
 The investigation and current limits are summarized in [ARCHITECTURE.md](ARCHITECTURE.md#known-issue-smartthings-tv-video-buffers). Community reports are not treated as platform specifications or proof of this project's root cause.

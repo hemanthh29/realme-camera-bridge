@@ -61,7 +61,7 @@ The deploy helper reads these private files:
 | File | Contents |
 | --- | --- |
 | `$REALME_CAMERA_WORKDIR/oauth-config.json` | Google OAuth client values, signing secret, pairing PIN, and account ID. |
-| `$REALME_CAMERA_WORKDIR/camera-config.json` | Camera labels and Tuya device identifiers; optional Tuya user ID. |
+| `$REALME_CAMERA_WORKDIR/camera-config.json` | Camera labels and Tuya device identifiers; optional Tuya account UID. |
 | `$REALME_CAMERA_WORKDIR/tuya-credentials` | Tuya access ID on line 1 and secret on line 2. |
 | `~/.config/realme-camera-bridge/smartthings-oauth.json` | SmartThings Schema OAuth client ID and secret. |
 | `~/.config/realme-camera-bridge/smartthings-callback-oauth.json` | SmartThings callback OAuth client ID and secret. |
@@ -72,14 +72,14 @@ The default work directory is the adjacent `work/` directory for this checkout l
 
 To provision callback-token storage for a separate Cloudflare account, `scripts/setup-smartthings-callback-kv.py` also reads `~/.config/realme-camera-bridge/cloudflare-kv-access.json` (`account_id` and `api_token`). Use an account-scoped token with the needed Workers KV permissions. The script updates `wrangler.jsonc`; review the namespace ID before deploying. Do not point a personal fork at the production account or namespace.
 
-The owner deployment sequence is:
+To configure callback storage and deploy the Worker:
 
 ```sh
 python3 scripts/setup-smartthings-callback-kv.py
 python3 scripts/deploy-cloudflare.py
 ```
 
-The deploy helper reads the source from this checkout and checks `/health`. A GitHub push does not deploy the Worker. Do not run deployment commands unless you have authorization and are using the intended Cloudflare account.
+The deploy helper reads the source from this checkout and checks `/health`. A GitHub push does not deploy the Worker. Before deploying, confirm the Cloudflare credentials target the intended account and Worker; deployment updates the live service.
 
 ## Investigating the TV buffering issue
 
