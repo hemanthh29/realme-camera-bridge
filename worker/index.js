@@ -1179,20 +1179,19 @@ function embedTuyaCandidatesInVideoSdp(sdp, candidates) {
   const candidateLines = [...new Set(candidates.map((candidate) => {
     const value = typeof candidate === "string" ? candidate : candidate?.candidate;
     if (typeof value !== "string") return null;
-    const line = value.trim().replace(/^a=/i, "").replace(/\r?\n$/, "");
-    return /^candidate:\S+/i.test(line) ? `a=${line}` : null;
+    const line = value.trim().replace(/^a=/i, "");
+    return /^candidate:\S+/i.test(line) && !/[\r\n]/.test(line) ? `a=${line}` : null;
   }).filter(Boolean))].filter((line) => !existingCandidates.has(line));
-  if (!candidateLines.length) {
-    return { sdp, addedCount: 0, targetMid: video.mid || null, targetMLineIndex: video.index };
-  }
 
   const endMarkerIndex = parsed.lines.findIndex((line, index) =>
     index > video.lineIndex && index < sectionEnd && /^a=end-of-candidates$/i.test(line));
   const insertAt = endMarkerIndex >= 0 ? endMarkerIndex : sectionEnd;
   parsed.lines.splice(insertAt, 0, ...candidateLines);
-  if (endMarkerIndex < 0) parsed.lines.splice(insertAt + candidateLines.length, 0, "a=end-of-candidates");
+  if (candidateLines.length && endMarkerIndex < 0) {
+    parsed.lines.splice(insertAt + candidateLines.length, 0, "a=end-of-candidates");
+  }
   return {
-    sdp: parsed.lines.join("\r\n"),
+    sdp: parsed.lines.filter((line) => line.trim() !== "").join("\r\n") + "\r\n",
     addedCount: candidateLines.length,
     targetMid: video.mid || null,
     targetMLineIndex: video.index,
@@ -1265,15 +1264,10 @@ function summarizeSmartThingsResponse(response) {
 }
 
 function summarizeSdp(sdp) {
-  const lines = sdp.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = sdp.replace(/\r?\n$/, "").split(/\r?\n/).map((line) => line.trim());
   const sections = [];
-  const candidates = lines.filter((line) => line.startsWith("a=candidate:")).map((line) => {
-    const fields = line.replace(/^a=/, "").split(/\s+/);
-    return {
-      type: /\btyp\s+(host|srflx|prflx|relay)\b/i.exec(line)?.[1]?.toLowerCase() || "unknown",
-      protocol: ["udp", "tcp"].includes(fields[2]?.toLowerCase()) ? fields[2].toLowerCase() : "unknown",
-    };
-  });
+  const candidateEndpoints = lines.filter((line) => line.startsWith("a=candidate:"))
+    .map(summarizeIceCandidateEndpoint);
   let current;
   for (const line of lines) {
     if (line.startsWith("m=")) {
@@ -1317,9 +1311,11 @@ function summarizeSdp(sdp) {
   }
   return {
     chars: sdp.length,
+    hasBlankLines: sdp.length > 0 && lines.includes(""),
+    endsWithCrlf: sdp.endsWith("\r\n"),
     hasBundle: lines.some((line) => line.startsWith("a=group:BUNDLE")),
-    candidateEndpoints: candidates.map(summarizeIceCandidateEndpoint),
-    candidateTypes: [...new Set(candidates.map((candidate) => `${candidate.type}/${candidate.protocol}`))],
+    candidateEndpoints,
+    candidateTypes: [...new Set(candidateEndpoints.map((candidate) => `${candidate.type}/${candidate.protocol}`))],
     sections: sections.map((section) => ({
       ...section,
       codecs: [...new Set(section.codecs)],
