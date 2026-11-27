@@ -11,7 +11,6 @@ This page collects the consoles, official documentation, and investigation repor
 | SmartThings | [SmartThings Developer Center](https://console.smartthings.com/) | Schema Cloud Connector and Cloud Connected integration configuration. |
 | Tuya | [Tuya IoT Developer Platform](https://platform.tuya.com/) | Project API access, device data, and WebRTC configuration. |
 | Samsung | [Samsung Smart TV Developer](https://developer.samsung.com/smarttv/) | Tizen Studio and Samsung TV application debugging documentation. |
-| Source control | [Private GitHub repository](https://github.com/hemanthh29/realme-camera-bridge) | Source, documentation, branches, and pull requests. |
 
 ## Google Home Cloud-to-cloud
 
